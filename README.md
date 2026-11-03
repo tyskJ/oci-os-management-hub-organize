@@ -8,7 +8,7 @@ OCI OS管理ハブの構成およびTerraformによる構築・管理に関す�
 
 ## 構成図
 
-![OCI OS管理ハブの構成図](./doc/drawio/architecture.drawio.png)
+![検証構成図](./doc/drawio/architecture.drawio.png)
 
 ## 作業環境
 

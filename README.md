@@ -41,7 +41,7 @@ TerraformによるOCI環境の構築・変更に関する手順を定める。
 
 検証環境などの削除に関しては、破壊的な操作とTerraform Stateの管理を伴うため、通常の実行手順とは分けて管理する。
 
-- [環境削除手順](./cleanup.md)
+- [環境削除手順](./docs/cleanup.md)
 - [トラブルシューティング](./docs/troubleshooting.md)
 
 > [!CAUTION]

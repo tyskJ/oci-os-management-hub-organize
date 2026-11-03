@@ -123,10 +123,12 @@ terraform {
 Backendの設定値は、本プロジェクトではルートモジュールの **`envs/config.oci.tfbackend`** に分離する。
 
 ```bash
+SYSTEM_NAME="oci-os-management-hub-organize"
+
 cat <<EOF > config.oci.tfbackend
 bucket              = "terraform-working"
 namespace           = "${NAMESPACE}"
-key                 = "terraform.tfstate"
+key                 = "${SYSTEM_NAME}/terraform.tfstate"
 auth                = "SecurityToken"
 config_file_profile = "ADMIN"
 region              = "ap-tokyo-1"
@@ -145,10 +147,13 @@ EOF
 ```bash
 cat <<EOF > oci.auto.tfvars
 tenancy_ocid = "${TENANCY_ID}"
+system_name  = "${SYSTEM_NAME}"
 EOF
 
 chmod 600 oci.auto.tfvars
 ```
+
+※ `TENANCY_ID` , `SYSTEM_NAME` は前節で取得済みとする。新しいシェルを開いた場合は再取得する。
 
 > [!WARNING]
 > 上記は**従来のローカルファイル運用を再現した例**であり、`oci.auto.tfvars` をGitに含めないこと。機密情報がある場合は、可能ならSecret管理基盤や、実行時に安全に渡す `TF_VAR_変数名` 等への切り替えを検討する。入力変数を `sensitive = true` にしてもState内の値が自動的に消えるわけではない。

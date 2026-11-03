@@ -8,3 +8,8 @@ variable "tenancy_ocid" {
   type        = string
   description = "テナンシ（ルートコンパートメント）の OCID"
 }
+
+variable "system_name" {
+  type        = string
+  description = "システムネーム"
+}

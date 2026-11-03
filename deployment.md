@@ -59,6 +59,7 @@ Terraformはリポジトリ内の `.terraform-version` に記載されたバー�
 >
 > - 以下はルートコンパートメントへ作成する例。CIS OCI Foundations Benchmarkの該当要件（例：6.2、利用版により確認）や組織のポリシーでルートへのリソース配置が禁止される場合は、State専用のコンパートメントを作成して配置する。
 > - 復旧可能性を高めるため、バージョニングを有効化する。
+> - バケットのスコープはデフォルトの `NAMESPACE` とする。同一テナンシ・リージョン内でバケット名が一意であればよく、他テナンシ含めたリージョン全体での一意性は必要としない。
 > - Stateを格納するバケットはTerraform自身の管理対象に含めない。本プロジェクトのバケット名は `terraform-working` とする。
 
 ### 2.1 テナンシOCIDを取得
@@ -83,6 +84,7 @@ printf '%s\n' "$TENANCY_ID"
 oci os bucket create \
   --compartment-id "${TENANCY_ID}" \
   --name terraform-working \
+  --bucket-scope NAMESPACE \
   --versioning Enabled \
   --public-access-type NoPublicAccess \
   --profile ADMIN \

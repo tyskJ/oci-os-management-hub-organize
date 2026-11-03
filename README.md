@@ -1,4 +1,4 @@
-![](./docs/assets/001samune.png)
+![](./docs/assets/samune.png)
 
 # OCI OS管理ハブ
 

@@ -142,8 +142,6 @@ EOF
 
 利用者・テナンシごとの値を **`envs/oci.auto.tfvars`** に定義する。このファイルは `.gitignore` の対象とする。
 
-パラメータシートの値は、現行プロジェクトでは `<シート名>.auto.tfvars` に定義し、機密情報を含まないものだけをリポジトリに含める。
-
 ```bash
 cat <<EOF > oci.auto.tfvars
 tenancy_ocid = "${TENANCY_ID}"
@@ -201,7 +199,7 @@ tflint --config=../.tflint.hcl
 
 ## 7. テスト
 
-ルートモジュール直下の `envs/tests/` にある `.tftest.hcl`（本プロジェクトではパラメータシートごとに `<シート名>.tftest.hcl`）を実行する。
+ルートモジュール直下の `envs/tests/` にある `.tftest.hcl` を実行する。
 
 ```bash
 terraform test
@@ -210,7 +208,7 @@ terraform test
 個別のテストファイルを実行する場合：
 
 ```bash
-terraform test -filter=tests/<シート名>.tftest.hcl
+terraform test -filter=tests/.tftest.hcl
 ```
 
 > [!IMPORTANT]

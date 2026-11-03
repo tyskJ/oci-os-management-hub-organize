@@ -2,7 +2,7 @@
 
 本書は**検証用に構築したOCI環境を削除する場合のみ**参照する。通常の構築・変更は [Terraform実行手順](./deployment.md) に従う。
 
-- [READMEへ戻る](./README.md)
+- [READMEへ戻る](../README.md)
 - [Terraform実行手順](./deployment.md)
 - [トラブルシューティング](./troubleshooting.md)
 

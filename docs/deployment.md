@@ -2,7 +2,7 @@
 
 本書は、本プロジェクトにおける **OCIの初期準備、Terraformの初期化・検証・テスト・デプロイ** の手順を定める。
 
-- [READMEへ戻る](./README.md)
+- [READMEへ戻る](../README.md)
 - [環境削除手順](./cleanup.md)
 - [トラブルシューティング](./troubleshooting.md)
 - [Terraformコーディング規約](./terraform-coding-standards.md)

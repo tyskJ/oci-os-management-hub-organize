@@ -2,7 +2,7 @@
 
 本書は、OCI環境の構築・削除で発生する事象の調査手順を記録する。
 
-- [READMEへ戻る](./README.md)
+- [READMEへ戻る](../README.md)
 - [Terraform実行手順](./deployment.md)
 - [環境削除手順](./cleanup.md)
 

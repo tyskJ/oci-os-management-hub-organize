@@ -140,18 +140,57 @@ EOF
 
 ## 4. 入力変数ファイルの作成
 
-利用者・テナンシごとの値を **`envs/oci.auto.tfvars`** に定義する。このファイルは `.gitignore` の対象とする。
+### 4.1 SSH鍵の作成
+
+用途の異なる2本のSSH鍵を `envs/.key/` に作成する。このディレクトリは `.gitignore` の対象とする。
+
+| 鍵                      | 用途                                                  | 種類    |
+| ----------------------- | ----------------------------------------------------- | ------- |
+| `.key/bastion_rsa`      | Bastionセッション（ポートフォワーディングのトンネル） | RSA     |
+| `.key/instance_ed25519` | Oracle Linuxの `opc` ユーザーへのログイン             | ed25519 |
+
+鍵を分けることで、片方の秘密鍵が漏えいしても、Bastionのトンネル確立とOSへのログインの両方を同時に行えないようにする。
 
 ```bash
+mkdir -p .key
+ssh-keygen -t rsa -b 4096 -f .key/bastion_rsa -N ""
+ssh-keygen -t ed25519 -f .key/instance_ed25519 -N ""
+chmod 600 .key/bastion_rsa .key/instance_ed25519
+```
+
+鍵の場所を変える場合は、`oci.auto.tfvars` に `bastion_ssh_public_key_path`・`instance_ssh_public_key_path` を指定する。
+
+### 4.2 `oci.auto.tfvars` の作成
+
+利用者・テナンシごとの値を **`envs/oci.auto.tfvars`** に定義する。このファイルは `.gitignore` の対象とする。
+
+`bastion_client_cidr_blocks` には、Bastionへ接続する作業端末のグローバルIPを指定する。
+
+```bash
+MY_GLOBAL_IP=$(curl -s https://checkip.amazonaws.com)
+
 cat <<EOF > oci.auto.tfvars
-tenancy_ocid = "${TENANCY_ID}"
-system_name  = "${SYSTEM_NAME}"
+tenancy_ocid               = "${TENANCY_ID}"
+system_name                = "${SYSTEM_NAME}"
+bastion_client_cidr_blocks = ["${MY_GLOBAL_IP}/32"]
 EOF
 
 chmod 600 oci.auto.tfvars
 ```
 
 ※ `TENANCY_ID` , `SYSTEM_NAME` は前節で取得済みとする。新しいシェルを開いた場合は再取得する。
+
+主な入力変数は以下のとおり。既定値のあるものは必要な場合のみ指定する。
+
+| 変数                             | 既定値                        | 内容                                         |
+| -------------------------------- | ----------------------------- | -------------------------------------------- |
+| `bastion_client_cidr_blocks`     | なし（必須）                  | Bastionへの接続を許可する接続元CIDR          |
+| `bastion_session_ttl_in_seconds` | `10800`                       | Bastionセッションの有効期間（1800〜10800秒） |
+| `bastion_ssh_public_key_path`    | `./.key/bastion_rsa.pub`      | Bastionセッション用のSSH公開鍵のパス         |
+| `instance_shape`                 | `VM.Standard.E5.Flex`         | Windows Server・Oracle Linux共通のシェイプ   |
+| `instance_ocpus`                 | `1`                           | OCPU数                                       |
+| `instance_memory_in_gbs`         | `16`                          | メモリ（GB）                                 |
+| `instance_ssh_public_key_path`   | `./.key/instance_ed25519.pub` | Oracle Linuxログイン用のSSH公開鍵のパス      |
 
 > [!WARNING]
 > 上記は**従来のローカルファイル運用を再現した例**であり、`oci.auto.tfvars` をGitに含めないこと。機密情報がある場合は、可能ならSecret管理基盤や、実行時に安全に渡す `TF_VAR_変数名` 等への切り替えを検討する。入力変数を `sensitive = true` にしてもState内の値が自動的に消えるわけではない。
@@ -234,7 +273,52 @@ terraform apply tfplan
 
 対象環境・認証プロファイル・Stateの保存先・適用するplanが一致していることを確認する。適用後、リソースの作成状況と想定どおりの設定になっていることを確認する。
 
-## 10. Terraformで管理しないもの
+## 10. Bastion経由での接続
+
+Bastionセッション（SSHポートフォワーディング）はTerraformで作成する。接続コマンドは出力値で確認する。
+
+```bash
+terraform output bastion_session_commands
+```
+
+出力されたコマンドの `<privateKey>` を **Bastion用の秘密鍵** `.key/bastion_rsa`、`<localPort>` を任意のローカルポートに置き換え、別ターミナルで実行したままにする。
+
+### 10.1 Oracle Linux（TCP/22）
+
+トンネル経由のログインには **インスタンス用の秘密鍵** `.key/instance_ed25519` を使用する。
+
+```bash
+# 例：ローカルの 10022 番をフォワードした場合
+ssh -i .key/instance_ed25519 -p 10022 opc@localhost
+```
+
+> [!NOTE]
+> Oracle Linuxは初回起動時にuser_data（`envs/userdata/oraclelinux_init.yaml`）でタイムゾーン・日本語ロケールの設定とSELinuxの無効化を行い、cloud-init完了後に1回再起動する。`cloud-init status --long` が `done` になってから確認する。仕組みと注意点は [Oracle Linuxのuser_dataによる初期化](./linux-userdata.md) を参照する。
+
+### 10.2 Windows Server（TCP/3389）
+
+初期ユーザー名・パスワードを確認し、RDPクライアントで `localhost:<localPort>`（例：`localhost:13389`）へ接続する。初回ログイン時にパスワードの変更を求められる。
+
+> [!IMPORTANT]
+> Windows Serverは初回起動時にuser_data（`envs/userdata/windows_init.ps1`）で日本語の言語パックをインストールし、表示言語・ロケール・キーボード・タイムゾーンを設定してから再起動する。**再起動が完了するまで初回ログインしないこと。** 先にログインすると `opc` のユーザー・プロファイルが英語設定のまま作られ、日本語の設定が反映されない。実行ログは `C:\Windows\Temp\userdata_windows_init.log` で確認できる。仕組みと注意点は [Windows Serverのuser_dataによる日本語化](./windows-userdata.md) を参照する。
+
+```bash
+terraform output -json windows_initial_credentials
+```
+
+> [!WARNING]
+> 初期パスワードはStateにも保存される。出力結果を共有・保存しないこと。
+
+### 10.3 セッションの期限切れ
+
+セッションは `bastion_session_ttl_in_seconds`（既定3時間）を過ぎるとOCI側で削除され、次回の `plan` で再作成の差分が出る。接続し直す場合は対象セッションだけを作り直す。
+
+```bash
+terraform apply -replace='oci_bastion_session.this["linux"]'
+terraform apply -replace='oci_bastion_session.this["windows"]'
+```
+
+## 11. Terraformで管理しないもの
 
 本プロジェクト固有の管理対象外リソースは以下のとおり。
 
@@ -245,7 +329,7 @@ terraform apply tfplan
 > [!NOTE]
 > 既定リソースの扱いは、使用するOCI Providerのリソース仕様と現在のStateを必ず確認すること。既定リソースを管理するかどうかは構成・運用要件に依存する。
 
-## 11. 環境削除・障害対応
+## 12. 環境削除・障害対応
 
 - 環境の削除：[環境削除手順](./cleanup.md)
 - コンパートメントにリソースが残るなどの調査：[トラブルシューティング](./troubleshooting.md)

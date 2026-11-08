@@ -37,6 +37,11 @@ TerraformによるOCI環境の構築・変更に関する手順を定める。
 
 前提条件、OCI認証、State管理用バケットの準備、入力変数・Backend設定、静的解析・テスト、`plan`・`apply` の詳細は、[Terraform実行手順](./docs/deployment.md) を参照する。
 
+各インスタンスの初回起動時にuser_dataで行う初期化の仕組みと注意点は、以下を参照する。
+
+- [Oracle Linuxのuser_dataによる初期化](./docs/linux-userdata.md)（タイムゾーン・日本語ロケール・SELinux無効化）
+- [Windows Serverのuser_dataによる日本語化](./docs/windows-userdata.md)（表示言語・ロケール・キーボード・タイムゾーン）
+
 ## 環境削除
 
 検証環境などの削除に関しては、破壊的な操作とTerraform Stateの管理を伴うため、通常の実行手順とは分けて管理する。

@@ -4,6 +4,7 @@ provider "oci" {
   region              = "ap-tokyo-1"
   ignore_defined_tags = [
     "Oracle-Tags.CreatedBy",
-    "Oracle-Tags.CreatedOn"
+    "Oracle-Tags.CreatedOn",
+    "Common.SystemName"
   ]
 }

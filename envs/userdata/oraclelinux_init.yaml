@@ -1,0 +1,41 @@
+#cloud-config
+
+# Timezone
+# cloud-initのtimezoneモジュールで設定する
+timezone: Asia/Tokyo
+
+# 初期化コマンド
+# cloud-initの最終段階で、上から順にシェルで実行される。
+# 1つのコマンドが失敗しても後続のコマンドは実行される
+runcmd:
+  # rsyslogが動いている場合のみ再起動し、ログのタイムスタンプに新しいタイムゾーンを反映する
+  - systemctl try-restart rsyslog
+
+  # Locale
+  # 初回起動時はOS Management Hub Agentの登録と並行して動くため、リポジトリ切り替えのタイミングで
+  # dnfが失敗する可能性がある。失敗した場合は警告を出してロケール設定だけ省略する
+  - |
+    if dnf install -y glibc-langpack-ja; then
+      localectl set-locale LANG=ja_JP.utf8
+    else
+      echo "WARN: glibc-langpack-ja のインストールに失敗したため、ロケール設定を省略しました" >&2
+    fi
+
+  # SELinux disable（検証用途。本番環境では無効化しない）
+  # Oracle Linux 9以降は /etc/selinux/config の SELINUX=disabled では完全に無効化されないため、
+  # カーネル引数 selinux=0 で無効化する。反映は power_state による再起動で行う
+  - grubby --update-kernel ALL --args selinux=0
+  # 再起動までの間はpermissiveにしておく（既にdisabledの場合はエラーになるため無視する）
+  - setenforce 0 || true
+
+  # firewalldは変更しない（OS既定の設定のまま確認する）
+
+# Reboot
+# cloud-initの全モジュールが完了してから再起動する。
+# SELinuxの無効化（カーネル引数）を反映するため
+power_state:
+  mode: reboot
+  message: "Rebooting to apply selinux=0"
+  # cloud-initの完了を待つ最大秒数。超えた場合はそのまま再起動する
+  timeout: 300
+  condition: true

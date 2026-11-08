@@ -540,6 +540,67 @@ terraform plan -var-file="<path-to-environment.tfvars>"
 
 Backend設定が `backend.tf` 内で完結している場合やHCP Terraformを使用する場合は、それぞれの初期化方式に従う。上記コマンドは特定のディレクトリ名を要件としない。
 
+### 16.4 テストコード
+
+Terraformコードの品質と変更時の安全性を確保するため、必要に応じてTerraform標準のテストフレームワークを使用する。
+
+| 区分 | 項目           | ルール                                                                                                                 |
+| ---- | -------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 原則 | テストの作成   | 複雑な条件分岐、繰り返し処理、設定値の変換、セキュリティ上重要な設定など、動作の保証が必要な処理にはテストを作成する。 |
+| 原則 | テストファイル | `.tftest.hcl` 形式を使用する。                                                                                         |
+| 原則 | 配置場所       | テスト対象のルートモジュールまたは子モジュールの `tests/` ディレクトリに配置する。                                     |
+| 原則 | ファイル分割   | 機能・責務・検証対象ごとに分割し、内容がわかるファイル名を使用する。                                                   |
+| 原則 | テストケース   | 正常系に加え、必要に応じて異常系・境界値・条件分岐を検証する。                                                         |
+| 原則 | 検証内容       | 入力値に対するリソース属性、生成数、依存関係、出力値などが設計要件を満たすことを確認する。                             |
+| 原則 | テスト方法     | 外部リソースの作成が不要な検証では、`command = plan` や `mock_provider` などを利用する。                               |
+| 必須 | 期待結果       | `assert` などを使用し、期待する条件を明確に定義する。                                                                  |
+| 原則 | テストの命名   | `run` ブロックには検証目的がわかる名前を使用する。                                                                     |
+| 原則 | コメント       | テストの目的や検証条件が明確になるよう、必要に応じてコメントを記載する。                                               |
+| 必須 | テストの独立性 | 本番環境への意図しない影響を避け、実リソースを使用する場合は専用環境と後片付けを考慮する。                             |
+| 原則 | テストの保守   | Terraformコードの変更時は関連するテストを見直し、必要に応じて追加・修正する。                                          |
+| 推奨 | 自動実行       | CI/CDでテストを自動実行し、変更による既存機能への影響を検出する。                                                      |
+
+すべてのリソースに対するテスト作成を一律に義務付けず、設定の重要性、処理の複雑さ、変更時のリスクに応じてテスト範囲を決定する。
+
+`terraform test` は実リソースを作成する場合があるため、Mockを使用したテストと実環境を使用したテストを明確に区別する。
+
+### 16.4.1 記述例
+
+以下は、OCIのプライベートサブネットでパブリックIPの割当が禁止されていることを検証するテストの例。
+
+`tests/subnet.tftest.hcl`
+
+```hcl
+# ============================================================
+# Subnet Test
+# ============================================================
+
+# OCI Providerをモック化し、実リソースを作成せずに検証する。
+mock_provider "oci" {}
+
+# プライベートサブネットにおいて、
+# パブリックIPの割当が禁止されていることを検証する。
+run "private_subnet_prohibits_public_ip" {
+  command = plan # 実リソースを作成せず、実行計画を検証する
+
+  assert {
+    condition     = oci_core_subnet.private.prohibit_public_ip_on_vnic == true # パブリックIPの割当禁止が有効であることを確認する
+    error_message = "プライベートサブネットはパブリックIPの割当を禁止する必要があります。" # 検証失敗時に表示するメッセージ
+  }
+}
+```
+
+※ 対象モジュールに `oci_core_subnet.private` が定義され、必要な入力変数が提供されていることを前提とする。
+
+テストコードについても、第13章のコメント規約を基本とし、次の事項が明確になるよう記述する。
+
+- **見出しコメント**：検証対象のサービス名・リソース種別
+- **ブロック直前のコメント**：テストの目的と検証内容
+- **各パラメータのコメント**：設定項目の役割と選択した値・条件の意図
+- **検証条件**：期待する結果と、検証失敗時のメッセージ
+
+なお、`mock_provider` を使用したテストは実際のクラウドリソースを作成せずに構成やロジックを検証するものであり、クラウド上での動作を保証するものではない。
+
 ## 17. プロジェクト固有規約との分担
 
 本規約で固定しない事項は、必要に応じて `project-conventions.md` またはプロジェクトREADMEに記載する。
@@ -568,5 +629,7 @@ Backend設定が `backend.tf` 内で完結している場合やHCP Terraformを�
 - [Backend block configuration overview（partial configuration）- Terraform](https://developer.hashicorp.com/terraform/language/backend#partial-configuration)
 - [Dependency Lock File](https://developer.hashicorp.com/terraform/language/files/dependency-lock)
 - [Module Composition](https://developer.hashicorp.com/terraform/language/modules/develop/composition)
-- [Tests - Terraform](https://developer.hashicorp.com/terraform/language/tests)
-- [Mocks - Terraform](https://developer.hashicorp.com/terraform/language/tests/mocking)
+- [Terraform Tests](https://developer.hashicorp.com/terraform/language/tests)
+- [Terraform Test Files](https://developer.hashicorp.com/terraform/language/files/tests)
+- [Terraform Mocking](https://developer.hashicorp.com/terraform/language/tests/mocking)
+- [Terraform Test Command](https://developer.hashicorp.com/terraform/cli/commands/test)

@@ -276,7 +276,7 @@ Terraform CLIの入力値の優先順位（高い順）は、おおむね **`-va
 
 **設定可能なパラメータを網羅的に確認することと、すべてのパラメータをTerraformコードに明示することは区別する。**
 
-設定要否の判断結果は、必要に応じて設計書やパラメータシートなどに記録する。Terraformコードには実際に必要な設定を定義し、不要なパラメータの記述や過度な複雑化を避ける。
+新規リソースの定義時および設定内容に影響する重要な変更時には、対象Providerの公式仕様を確認し、設定可能なパラメータとその設定要否を評価する。評価結果は、必要に応じて設計書やパラメータシートなどに記録する。Terraformコードには実際に必要な設定を定義し、不要なパラメータの記述や過度な複雑化を避ける。
 
 ## 9. 子モジュールの設計と再利用
 
@@ -427,6 +427,8 @@ HCP Terraformの `cloud` ブロックと `backend` ブロックは同じTerrafor
 
 コメントは、**ブロック直前で「何を定義するか・何のためか」**、**各パラメータの右側で「何を設定する項目か・今回はどう設定するか」**を伝えることを基本とする。属性名や設定値をそのまま言い換えるだけでなく、参照元や設計意図が伝わる表現にする。
 
+コメントの網羅性と可読性が競合する場合は、設定内容と設計意図を正確に理解できることを優先し、コメントの配置や記述方法を調整する。
+
 なお、設定可能なパラメータの網羅性および設定要否の判断については、[8.4 パラメータの網羅性](#84-パラメータの網羅性) に従う。
 
 ### 13.2 記述例
@@ -437,7 +439,8 @@ HCP Terraformの `cloud` ブロックと `backend` ブロックは同じTerrafor
 # ============================================================
 
 # 内部システム用のプライベートサブネットを定義する。
-# パブリックIPの割当を禁止し、外部公開を抑止する。
+# VNICへのパブリックIPv4アドレス割当を禁止する。
+# 通信経路やアクセス制御は、ルート表・セキュリティルールなどで別途設計する。
 resource "oci_core_subnet" "private" {
   compartment_id             = var.compartment_id   # 配置先コンパートメント。入力変数で指定した区画に作成する
   vcn_id                     = oci_core_vcn.this.id # 所属するVCN。同一モジュールで作成したVCNを使用する
@@ -564,42 +567,136 @@ Terraformコードの品質と変更時の安全性を確保するため、必�
 
 `terraform test` は実リソースを作成する場合があるため、Mockを使用したテストと実環境を使用したテストを明確に区別する。
 
-### 16.4.1 記述例
+#### 16.4.1 記述例（モックテスト）
 
-以下は、OCIのプライベートサブネットでパブリックIPの割当が禁止されていることを検証するテストの例。
+以下は、OCIのプライベートサブネットで、VNICへのパブリックIPv4アドレス割当が禁止されていることを検証する例である。**テスト対象の設定・必要な入力変数・テスト定義を一式で示す。** 実際のOCIリソースは作成しない。
 
-`tests/subnet.tftest.hcl`
+**実行前提**
+
+- Terraform **1.7.0以降**（`mock_provider` を使用するため）。
+- OCI Provider `oracle/oci` **9.11.0**（以下の例で固定した検証対象バージョン。実際のプロジェクトでは採用版に合わせる）。
+- `terraform init` でProviderを取得できること（初期化時にTerraform Registryへの接続等が必要）。
+- `terraform test` はモックされたOCI Providerのみを利用する。**OCIの認証情報、実在するOCID、稼働中のOCI環境は不要**。この構成は本番環境へのデプロイには使用しない。
+- 以下の4ファイルを、例示した配置・内容のまま用意する。既存のプロジェクトに組み込む場合は、Providerバージョンや対象リソース名・入力変数に合わせて調整する。
+
+**ディレクトリ構成**
+
+```text
+subnet-test-example/           # テスト用の独立したルートモジュール
+├── terraform.tf
+├── variables.tf
+├── main.tf
+└── tests/
+    └── subnet.tftest.hcl
+```
+
+**`terraform.tf`** — Terraform・Providerの要件
+
+```hcl
+terraform {
+  required_version = ">= 1.7.0, < 2.0.0"
+
+  required_providers {
+    oci = {
+      source  = "oracle/oci"
+      version = "= 9.11.0"
+    }
+  }
+}
+```
+
+**`variables.tf`** — テスト対象が受け取る入力変数
+
+```hcl
+variable "compartment_id" {
+  type        = string
+  description = "サブネットを配置するコンパートメントのOCID"
+}
+
+variable "vcn_id" {
+  type        = string
+  description = "サブネットを配置するVCNのOCID"
+}
+
+variable "subnet_cidr" {
+  type        = string
+  description = "サブネットのIPv4 CIDR"
+}
+```
+
+**`main.tf`** — テスト対象のリソース
+
+```hcl
+# ============================================================
+# Subnet
+# ============================================================
+
+# 内部システム向けのプライベートサブネットを定義する。
+# VNICにパブリックIPv4アドレスを割り当てない設計とする。
+resource "oci_core_subnet" "private" {
+  compartment_id             = var.compartment_id # 配置先コンパートメント。テスト時はダミーOCIDを渡す
+  vcn_id                     = var.vcn_id         # 所属VCN。テスト時はダミーOCIDを渡す
+  cidr_block                 = var.subnet_cidr    # IPアドレス範囲。テスト入力のCIDRを適用する
+  display_name               = "private-subnet"   # 表示名。内部向けであることがわかる名前を付ける
+  prohibit_public_ip_on_vnic = true               # VNICへのパブリックIPv4アドレス割当を禁止する
+}
+```
+
+**`tests/subnet.tftest.hcl`** — テストの定義
 
 ```hcl
 # ============================================================
 # Subnet Test
 # ============================================================
 
-# OCI Providerをモック化し、実リソースを作成せずに検証する。
+# OCI ProviderのAPI操作をモック化し、実リソースを作成しない。
 mock_provider "oci" {}
 
-# プライベートサブネットにおいて、
-# パブリックIPの割当が禁止されていることを検証する。
-run "private_subnet_prohibits_public_ip" {
-  command = plan # 実リソースを作成せず、実行計画を検証する
+# プライベートサブネットの設定が期待する値になっていることを検証する。
+run "private_subnet_settings" {
+  command = plan # applyを実行せず、計画段階の値を検証する
 
+  # mock_providerを使うため、ここで指定するOCIDは実在する必要がない。
+  variables {
+    compartment_id = "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" # モック用のコンパートメントID
+    vcn_id         = "ocid1.vcn.oc1.ap-tokyo-1.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" # モック用のVCN ID
+    subnet_cidr    = "10.0.1.0/24" # 設定するサブネットのCIDR
+  }
+
+  # VNICへのパブリックIPv4アドレス割当が禁止されていることを確認する。
   assert {
-    condition     = oci_core_subnet.private.prohibit_public_ip_on_vnic == true # パブリックIPの割当禁止が有効であることを確認する
-    error_message = "プライベートサブネットはパブリックIPの割当を禁止する必要があります。" # 検証失敗時に表示するメッセージ
+    condition     = oci_core_subnet.private.prohibit_public_ip_on_vnic == true # 禁止フラグがtrueであることを確認する
+    error_message = "サブネットではパブリックIPv4アドレスの割当を禁止する必要があります。" # 失敗時の診断内容
+  }
+
+  # 指定したCIDRがリソースに設定されていることを確認する。
+  assert {
+    condition     = oci_core_subnet.private.cidr_block == "10.0.1.0/24" # テスト入力とCIDRが一致することを確認する
+    error_message = "サブネットのCIDRが期待する値と一致しません。" # 失敗時の診断内容
   }
 }
 ```
 
-※ 対象モジュールに `oci_core_subnet.private` が定義され、必要な入力変数が提供されていることを前提とする。
+**実行手順** — `subnet-test-example/` をカレントディレクトリとして実行する。
 
-テストコードについても、第13章のコメント規約を基本とし、次の事項が明確になるよう記述する。
+```bash
+terraform init -backend=false
+terraform fmt -recursive
+terraform fmt -check -recursive
+terraform validate
+terraform test
+```
+
+`terraform test -filter=tests/subnet.tftest.hcl` により、このテストファイルだけを選択して実行することもできる。
+
+テストコードについても、第13章のコメント規約を基本とし、以下の内容を記述する。
 
 - **見出しコメント**：検証対象のサービス名・リソース種別
 - **ブロック直前のコメント**：テストの目的と検証内容
 - **各パラメータのコメント**：設定項目の役割と選択した値・条件の意図
 - **検証条件**：期待する結果と、検証失敗時のメッセージ
 
-なお、`mock_provider` を使用したテストは実際のクラウドリソースを作成せずに構成やロジックを検証するものであり、クラウド上での動作を保証するものではない。
+`mock_provider` はAPIを呼び出さずに構成・計画段階の値を検証するための仕組みであり、実際のOCI上での動作、ネットワークの到達性、実リソースの作成可否まで保証するものではない。本書の記述例は、対象バージョンの仕様に基づく実行用サンプルだが、**本書作成時点ではTerraform CLIでの実行検証は未実施**である。実プロジェクトに採用する前に、実際に使用するTerraform・Providerのバージョンで検証する。
 
 ## 17. プロジェクト固有規約との分担
 

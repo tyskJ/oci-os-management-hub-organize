@@ -38,4 +38,5 @@ power_state:
   message: "Rebooting to apply selinux=0"
   # cloud-initの完了を待つ最大秒数。超えた場合はそのまま再起動する
   timeout: 300
+  # 再起動の実行条件。SELinuxの無効化を反映するため常に再起動する（省略時の既定値もtrue）
   condition: true

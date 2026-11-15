@@ -90,7 +90,8 @@ resource "oci_identity_policy" "osmh_agent" {
 # ============================================================
 
 # OS Management Hubの動的セットが、条件に一致するインスタンスを検索（Resource Search）するための権限を定義する。
-# ポリシー・アドバイザでは作成されないため、明示的に定義する。
+# コンソールのポリシー・アドバイザでは自動作成されるが、本構成ではTerraformで管理するため明示的に定義する。
+# OCI以外のインスタンスは対象外のため、Management Agent用のステートメント（inspect management-agents）は含めない。
 # Agent用の権限（osmh_agent）とは目的が異なるため、別のポリシーに分ける。
 resource "oci_identity_policy" "osmh_dynamic_sets" {
   compartment_id = var.tenancy_ocid                           # 作成先。osmh_agent と同じくテナンシに作成する

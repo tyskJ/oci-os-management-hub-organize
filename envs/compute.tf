@@ -105,8 +105,13 @@ resource "oci_core_instance" "this" {
     ignore_changes = [source_details[0].source_id]
   }
 
-  # OSMH Agentは起動直後に登録を試みる。参照関係がないため、ポリシーの作成完了を明示的に待つ
-  depends_on = [oci_identity_policy.osmh_agent]
+  # 参照関係がないため、起動直後の処理に必要なリソースの作成完了を明示的に待つ。
+  # - ポリシー：OSMH Agentは起動直後に登録を試みるため
+  # - NSGのegressルール：起動直後のuser_data（言語パック・パッケージの取得）とAgentの登録で外向き通信を使うため
+  depends_on = [
+    oci_identity_policy.osmh_agent,
+    oci_core_network_security_group_security_rule.instance_egress_all,
+  ]
 }
 
 # ============================================================

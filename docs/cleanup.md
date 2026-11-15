@@ -103,14 +103,28 @@ oci os-management-hub managed-instance list \
   --auth security_token
 ```
 
-一覧の `id` が本構成のインスタンスのものであることを確認してから、1件ずつ登録解除する。
+一覧の `id` が本構成のインスタンスのものであることを確認してから、検証用コンパートメントの管理対象インスタンスをすべて登録解除する。
+1件ごとに確認プロンプト（`Are you sure you want to delete this resource? [y/N]`）が表示されるため、`y` を入力して進める。
 
 ```bash
-oci os-management-hub managed-instance delete \
-  --managed-instance-id <管理対象インスタンスのOCID> \
+for MANAGED_INSTANCE_ID in $(oci os-management-hub managed-instance list \
+  --compartment-id "${COMPARTMENT_ID}" \
+  --all \
+  --query "data.items[].id | join(' ', @)" \
+  --raw-output \
   --profile ADMIN \
-  --auth security_token
+  --auth security_token); do
+  echo "Unregistering: ${MANAGED_INSTANCE_ID}"
+  oci os-management-hub managed-instance delete \
+    --managed-instance-id "${MANAGED_INSTANCE_ID}" \
+    --profile ADMIN \
+    --auth security_token
+done
 ```
+
+> [!NOTE]
+> `$(...)` の結果を空白で区切って1件ずつ処理するため、bash・zshのどちらでも動作する（`--query` の `join(' ', @)` でOCIDを空白区切りの1行にしている）。
+> 検証用コンパートメントに本構成以外のインスタンスを置いている場合は、一覧で対象外のOCIDが含まれていないことを確認する。確認プロンプトで `N` を入力すれば、その1件だけ登録解除を省略できる。
 
 登録解除中はステータスが Unregistering になる。再度 `managed-instance list` を実行し、一覧から消えたことを確認してから次の手順に進む。
 

@@ -82,6 +82,19 @@ locals {
     }
   }
 
+  # Oracle Linux 10（x86_64）のグループに割り当てるベンダー・ソフトウェア・ソースの表示名。
+  # サービス提供のプロファイル（oracle_linux_10_x86_64_profile）と同じ構成とし、
+  # イメージに含まれるパッケージ（AppStream・UEKなど）も更新できるようにする（BaseOSだけだと依存関係の解決に失敗する）
+  ol10_x86_64_vendor_software_sources = toset([
+    "ol10_baseos_latest-x86_64",            # OSの基本パッケージ
+    "ol10_appstream-x86_64",                # アプリケーション・開発用のパッケージ
+    "ol10_uekr8-x86_64",                    # UEK R8カーネル
+    "ol10_addons-x86_64",                   # 追加パッケージ
+    "ol10_oci_included-x86_64",             # OCI用のパッケージ
+    "ol10_ksplice-x86_64",                  # Ksplice（再起動なしのカーネル更新）
+    "ol10_x86_64_userspace_ksplice-x86_64", # ユーザー空間のKsplice
+  ])
+
   # OS種別のタグのキー（<ネームスペース>.<タグ・キー>）。
   # タグ・キーの反映待ち（time_sleep）を経由して参照し、反映後にタグが付くようにする
   os_type_tag_key = time_sleep.os_type_tag_propagation.triggers["tag_key"]

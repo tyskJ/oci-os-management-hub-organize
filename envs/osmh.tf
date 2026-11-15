@@ -2,14 +2,16 @@
 # OS Management Hub Software Source（Vendor）
 # ============================================================
 
-# Oracle Linux 10（x86_64）BaseOSのベンダー・ソフトウェア・ソースを、検証用コンパートメントへ複製して定義する。
-# 登録プロファイルなどから参照し、管理対象インスタンスのパッケージ取得元として使用する。
+# Oracle Linux 10（x86_64）のベンダー・ソフトウェア・ソースを、検証用コンパートメントへ複製して定義する。
+# 管理対象インスタンス・グループに割り当て、所属インスタンスのパッケージ取得元として使用する。
 # VENDORで指定できるのは複製元だけで、表示名・URL・OSファミリー・アーキテクチャなどは複製元から引き継がれる。
-resource "oci_os_management_hub_software_source" "ol10_baseos_latest_x86_64" {
+resource "oci_os_management_hub_software_source" "ol10_x86_64_vendor" {
+  for_each = local.ol10_x86_64_vendor_software_sources # 作成単位。local.ol10_x86_64_vendor_software_sources の表示名ごとに作成する
+
   compartment_id       = local.tagged_compartment_id # 複製先。タグ・デフォルト設定済みの検証用コンパートメントを使用する
   software_source_type = "VENDOR"                    # ソフトウェア・ソースの種類。ベンダー提供のソースの複製とする
-  # 複製元。data.tf で取得したルート・コンパートメントのベンダー・ソフトウェア・ソースを指定する（作成後は変更不可）
-  origin_software_source_id = data.oci_os_management_hub_software_sources.ol10_baseos_latest_x86_64.software_source_collection[0].items[0].id
+  # 複製元。data.tf で同じ表示名で取得したルート・コンパートメントのベンダー・ソフトウェア・ソースを指定する（作成後は変更不可）
+  origin_software_source_id = data.oci_os_management_hub_software_sources.ol10_x86_64_vendor[each.key].software_source_collection[0].items[0].id
 }
 
 # ============================================================
@@ -27,8 +29,27 @@ resource "oci_os_management_hub_managed_instance_group" "ol10_x86_64" {
   os_family      = "ORACLE_LINUX_10"                         # OSファミリー。Oracle Linux 10とする（作成後は変更不可）
   arch_type      = "X86_64"                                  # アーキテクチャ。インスタンスのシェイプ（E5.Flex）に合わせx86_64とする（作成後は変更不可）
   location       = "OCI_COMPUTE"                             # インスタンスの場所。省略するとオンプレミスになるため、OCIのコンピュートとする（作成後は変更不可）
-  # 所属インスタンスが使うソフトウェア・ソース。同一構成で複製したOracle Linux 10 BaseOSを指定する
-  software_source_ids = [oci_os_management_hub_software_source.ol10_baseos_latest_x86_64.id]
+  # 作成時に割り当てるソフトウェア・ソース。BaseOSだけを指定し、それ以外は下の attach リソースで追加する
+  software_source_ids = [oci_os_management_hub_software_source.ol10_x86_64_vendor["ol10_baseos_latest-x86_64"].id]
+
+  lifecycle {
+    # software_source_ids は作成時にだけ反映され、作成後に変更してもグループの更新APIでは割り当てが変わらない。
+    # 作成後の追加は attach リソース（ol10_x86_64_software_sources）で行い、
+    # 追加後に software_source_ids の値が変わって差分が出ないよう、変更を無視する
+    ignore_changes = [software_source_ids]
+  }
+}
+
+# グループにBaseOS以外のベンダー・ソフトウェア・ソースを追加で割り当てる。
+# グループの software_source_ids は作成後に変更しても反映されないため、割り当て用のAPI（AttachSoftwareSources）を使う。
+# 注意：本リソースは追加（アタッチ）だけを行う。一覧から外しても、destroyしても、グループからは外れない（外す場合はコンソールなどで行う）。
+resource "oci_os_management_hub_managed_instance_group_attach_software_sources_management" "ol10_x86_64_software_sources" {
+  managed_instance_group_id = oci_os_management_hub_managed_instance_group.ol10_x86_64.id # 割り当て先。同一構成で作成したOracle Linux 10用のグループを指定する
+  # 追加するソフトウェア・ソース。作成時に割り当て済みのBaseOSを除く、同一構成で複製したベンダー・ソフトウェア・ソースを指定する
+  software_sources = [
+    for name, source in oci_os_management_hub_software_source.ol10_x86_64_vendor : source.id
+    if name != "ol10_baseos_latest-x86_64"
+  ]
 }
 
 # ============================================================
@@ -45,6 +66,10 @@ resource "oci_os_management_hub_profile" "ol10_x86_64_group" {
   profile_type              = "GROUP"                                                     # プロファイル・タイプ。グループに参加させるためグループとする（作成後は変更不可）
   registration_type         = "OCI_LINUX"                                                 # 登録するインスタンスの種類。OCIのLinuxインスタンスとする（作成後は変更不可）
   managed_instance_group_id = oci_os_management_hub_managed_instance_group.ol10_x86_64.id # 参加先のグループ。同一構成で作成したOracle Linux 10用のグループを指定する
+
+  # 参照関係がないため、グループへのソフトウェア・ソースの追加（attach）完了後に作成する。
+  # 本プロファイルで登録したインスタンスが、登録直後から全ソフトウェア・ソースを使えるようにする
+  depends_on = [oci_os_management_hub_managed_instance_group_attach_software_sources_management.ol10_x86_64_software_sources]
 }
 
 # Windows Server 2025（x86_64）のインスタンスを登録するためのプロファイルを定義する。

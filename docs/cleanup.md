@@ -114,6 +114,11 @@ oci os-management-hub managed-instance delete \
 
 登録解除中はステータスが Unregistering になる。再度 `managed-instance list` を実行し、一覧から消えたことを確認してから次の手順に進む。
 
+> [!NOTE]
+> 登録解除の完了は、`managed-instance delete` が返す作業リクエスト（`opc-work-request-id`）の状態ではなく、**一覧から消えたこと**で判断する。
+> 削除済みのコンピュート・インスタンスを登録解除した場合、一覧から消えた後も作業リクエストが `ACCEPTED`（進捗0%）のまま更新されないことがある。
+> 本構成の検証では、登録解除の実行から一覧から消えるまでに十数分かかった。
+
 > [!CAUTION]
 > 登録解除は元に戻せない。登録解除したインスタンスを再登録するには、インスタンス上での追加作業が必要になる（[トラブルシューティング（OSMH公式）](https://docs.oracle.com/en-us/iaas/osmh/doc/troubleshooting.htm)）。本手順では直後にインスタンスを削除するため問題ないが、対象が本構成のインスタンスであることを必ず確認する。
 

@@ -16,18 +16,22 @@ Windowsの地域・言語設定をuser_dataで変更しようとすると、ス�
 原因は**管理者権限の不足ではなく、設定の適用範囲**にある。
 
 - OCIのWindowsイメージでは、user_dataはcloud-initではなく **cloudbase-init** が実行する。
-- `#ps1_sysnative` で始まるPowerShellスクリプトは、**SYSTEMアカウント**として実行される。SYSTEMは管理者以上の権限を持つため、権限不足で失敗することは基本的にない。
-- ただし、地域・書式・キーボード・表示言語の一部は**ユーザーごとの設定**である。SYSTEMとして `Set-Culture` や `Set-WinUserLanguageList` を実行すると、**SYSTEMアカウント自身の設定**が変わるだけで、ログインする `opc` ユーザーには反映されない。
+- `#ps1_sysnative` で始まるPowerShellスクリプトは、cloudbase-init専用のローカル・ユーザー **`cloudbase-init`** として実行される。cloudbase-initは起動時にこのユーザーのパスワードを再設定し、このユーザーでログオンし直してからuser_dataを実行する。
+- `cloudbase-init` ユーザーはローカルの **Administrators** グループに所属しているため、権限不足で失敗することは基本的にない。
+- ただし、地域・書式・キーボード・表示言語の一部は**ユーザーごとの設定**である。`cloudbase-init` ユーザーとして `Set-Culture` や `Set-WinUserLanguageList` を実行すると、**`cloudbase-init` ユーザー自身の設定**が変わるだけで、ログインする `opc` ユーザーには反映されない。
+
+> [!NOTE]
+> 実行ユーザーは、user_dataの実行ログ（`C:\Windows\Temp\userdata_windows_init.log`）先頭の `Username` / `RunAs User`（`WINDOWS\cloudbase-init`）で確認できる。所属グループは `Get-LocalGroupMember -Group Administrators` で確認できる。
 
 ## 2. 設定の適用範囲
 
-| 設定                                      | 適用範囲     | 主なコマンド                    | user_data（SYSTEM）での扱い                    |
+| 設定                                      | 適用範囲     | 主なコマンド                    | user_data（cloudbase-init）での扱い            |
 | ----------------------------------------- | ------------ | ------------------------------- | ---------------------------------------------- |
 | 言語パックのインストール                  | システム全体 | `Install-Language`              | そのまま有効                                   |
 | システム既定の表示言語                    | システム全体 | `Set-SystemPreferredUILanguage` | そのまま有効                                   |
 | タイムゾーン                              | システム全体 | `Set-TimeZone`                  | そのまま有効                                   |
 | システム・ロケール（非Unicodeプログラム） | システム全体 | `Set-WinSystemLocale`           | 再起動後に有効                                 |
-| 表示言語（ユーザー）                      | ユーザーごと | `Set-WinUILanguageOverride`     | SYSTEM上で設定し、新規ユーザーの既定値にコピー |
+| 表示言語（ユーザー）                      | ユーザーごと | `Set-WinUILanguageOverride`     | 実行ユーザー上で設定し、新規ユーザーの既定値にコピー |
 | 地域・書式（日付・数値の形式）            | ユーザーごと | `Set-Culture`                   | 同上                                           |
 | 場所                                      | ユーザーごと | `Set-WinHomeLocation`           | 同上                                           |
 | 言語一覧・キーボード（入力方式）          | ユーザーごと | `Set-WinUserLanguageList`       | 同上                                           |
@@ -36,18 +40,18 @@ Windowsの地域・言語設定をuser_dataで変更しようとすると、ス�
 
 `Copy-UserInternationalSettingsToSystem -WelcomeScreen $true -NewUser $true` を使用する。
 
-1. SYSTEMアカウント上で、ユーザーごとの設定（表示言語・地域・場所・キーボード）を日本向けに変更する。
-2. `Copy-UserInternationalSettingsToSystem` で、実行中のユーザー（SYSTEM）の設定を **ようこそ画面** と **新規ユーザーの既定値** にコピーする。
+1. 実行ユーザー（`cloudbase-init`）上で、ユーザーごとの設定（表示言語・地域・場所・キーボード）を日本向けに変更する。
+2. `Copy-UserInternationalSettingsToSystem` で、実行中のユーザー（`cloudbase-init`）の設定を **ようこそ画面** と **新規ユーザーの既定値** にコピーする。
 3. `opc` のユーザー・プロファイルは**初回ログイン時に作成される**ため、user_data の実行時点ではまだ存在しない。
 4. 初回ログイン時、`opc` は新規ユーザーとしてコピーされた既定値を引き継ぎ、日本語の設定で作成される。
 
 ```mermaid
 sequenceDiagram
-    participant CI as cloudbase-init（SYSTEM）
+    participant CI as cloudbase-init（cloudbase-initユーザー）
     participant OS as Windows
     participant U as opc（初回ログイン）
     CI->>OS: 言語パック・タイムゾーン・システム・ロケールを設定（システム全体）
-    CI->>CI: 表示言語・地域・キーボードを設定（SYSTEM自身）
+    CI->>CI: 表示言語・地域・キーボードを設定（cloudbase-initユーザー自身）
     CI->>OS: Copy-UserInternationalSettingsToSystem（新規ユーザーの既定値へコピー）
     CI->>OS: exit 1001（再起動を要求）
     OS->>OS: 再起動

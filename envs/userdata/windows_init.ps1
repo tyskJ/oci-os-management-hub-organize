@@ -1,27 +1,30 @@
 #ps1_sysnative
 
 # ============================================================
-# Windows Server 初期化（cloudbase-init がSYSTEMアカウントで初回起動時に実行する）
+# Windows Server 初期化（cloudbase-init が専用のローカル管理者ユーザー cloudbase-init で初回起動時に実行する）
 # ============================================================
-# 表示言語・ロケール・キーボード・タイムゾーンを日本向けに設定する。
+# ロケール・キーボード・タイムゾーンを日本向けに設定する（表示言語の日本語化は言語パックのインストールに時間がかかるため無効化中）。
 # パスワードはセキュリティ上の理由で変更しない（詳細は compute.tf）。
 #
 # 注意：
 # - Windows PowerShell 5.1 はBOMなしUTF-8を正しく読めない場合があるため、
 #   日本語はコメントのみに使い、出力する文字列は英語にする
-# - 地域・書式・キーボード・表示言語はユーザーごとの設定のため、SYSTEMアカウント上で設定した後、
+# - 地域・書式・キーボード・表示言語はユーザーごとの設定のため、実行ユーザー（cloudbase-init）上で設定した後、
 #   Copy-UserInternationalSettingsToSystem でようこそ画面と新規ユーザー（初回ログイン前のopc）の既定値にコピーする
 
 $ErrorActionPreference = "Stop"
 Start-Transcript -Path "C:\Windows\Temp\userdata_windows_init.log" -Append
 
 try {
-  # Language Pack
-  # 日本語の言語パック（表示言語）をWindows Update経由でインストールする。NAT Gateway経由で取得する
-  Write-Output "Installing ja-JP language pack"
-  Install-Language -Language ja-JP
+  # Language Pack（無効化中）
+  # 日本語の言語パック（表示言語）をWindows Update経由でインストールする。NAT Gateway経由で取得する。
+  # インストールに数十分以上かかり、OS Management Hub AgentのWindows Updateの処理とも重なるため、コメントアウトしている。
+  # 表示言語を日本語にする場合は、以下の3行（Write-Output・Install-Language・Set-SystemPreferredUILanguage）と Set-WinUILanguageOverride のコメントを外す
+  # （Set-SystemPreferredUILanguage・Set-WinUILanguageOverride は言語パックがないと使えないため、あわせて無効化する）
+  # Write-Output "Installing ja-JP language pack"
+  # Install-Language -Language ja-JP
   # システム全体の既定の表示言語を日本語にする
-  Set-SystemPreferredUILanguage -Language ja-JP
+  # Set-SystemPreferredUILanguage -Language ja-JP
 
   # Timezone（システム全体）
   Write-Output "Setting timezone"
@@ -31,9 +34,9 @@ try {
   Write-Output "Setting system locale"
   Set-WinSystemLocale -SystemLocale ja-JP
 
-  # 以下はユーザーごとの設定。SYSTEMアカウント上で設定し、最後に既定値へコピーする
-  # 表示言語
-  Set-WinUILanguageOverride -Language ja-JP
+  # 以下はユーザーごとの設定。実行ユーザー（cloudbase-init）上で設定し、最後に既定値へコピーする
+  # 表示言語（言語パックが必要なため無効化中。Language Pack の項を参照）
+  # Set-WinUILanguageOverride -Language ja-JP
   # 地域・書式（日付・数値の形式）
   Set-Culture -CultureInfo ja-JP
   # 場所（122 = 日本）

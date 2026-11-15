@@ -51,7 +51,7 @@ resource "oci_identity_tag_default" "system_name" {
 # OS Management Hub Agentプラグインがインスタンス・プリンシパルで認証するための動的グループを定義する。
 # 検証用コンパートメント内のインスタンスをすべて対象とする。
 resource "oci_identity_dynamic_group" "osmh_instances" {
-  compartment_id = var.tenancy_ocid                              # 作成先。動的グループはテナンシにのみ作成できる
+  compartment_id = var.tenancy_ocid                              # 作成先。oci_identity_dynamic_group はテナンシのDefaultドメインに作成するリソースのため、テナンシのOCIDを指定する
   name           = "osmh-instances"                              # 動的グループ名。テナンシ内で一意の、用途がわかる名称とする
   description    = "${var.system_name} コンパートメント内のOSMH管理対象インスタンス" # 説明。対象範囲を示す
   # 一致ルール。%s に同一構成で作成した検証用コンパートメントのOCIDを入れ、その中のインスタンスに一致させる
@@ -68,8 +68,8 @@ resource "oci_identity_dynamic_group" "osmh_instances" {
 # OS Management Hub Agentがインスタンスを登録・管理するための権限を定義する。
 # 権限の範囲は検証用コンパートメントに限定する（OSMH公式のコンパートメント単位の記述）。
 resource "oci_identity_policy" "osmh_agent" {
-  compartment_id = var.tenancy_ocid                              # 作成先。動的グループを参照するためテナンシに作成する
-  name           = "osmh-agent"                                  # ポリシー名。テナンシ内で一意の、用途がわかる名称とする
+  compartment_id = local.tagged_compartment_id                   # 作成先。権限の範囲と同じ検証用コンパートメントに作成する
+  name           = "osmh-agent"                                  # ポリシー名。作成先のコンパートメント内で一意の、用途がわかる名称とする
   description    = "OS Management Hub Agentがインスタンスを登録・管理するための権限" # 説明。ポリシーの用途を示す
   # ポリシー文。動的グループのインスタンスに、自身に対応する管理対象インスタンスへのアクセスだけを許可する。
   # 動的グループは <アイデンティティ・ドメイン名>/<動的グループ名> の形式で、ドメイン名を省略せずに指定する。
@@ -94,8 +94,8 @@ resource "oci_identity_policy" "osmh_agent" {
 # OCI以外のインスタンスは対象外のため、Management Agent用のステートメント（inspect management-agents）は含めない。
 # Agent用の権限（osmh_agent）とは目的が異なるため、別のポリシーに分ける。
 resource "oci_identity_policy" "osmh_dynamic_sets" {
-  compartment_id = var.tenancy_ocid                           # 作成先。osmh_agent と同じくテナンシに作成する
-  name           = "osmh-dynamic-sets"                        # ポリシー名。テナンシ内で一意の、用途がわかる名称とする
+  compartment_id = local.tagged_compartment_id                # 作成先。osmh_agent と同じく、権限の範囲と同じ検証用コンパートメントに作成する
+  name           = "osmh-dynamic-sets"                        # ポリシー名。作成先のコンパートメント内で一意の、用途がわかる名称とする
   description    = "OS Management Hubの動的セットがインスタンスを検索するための権限" # 説明。ポリシーの用途を示す
   # ポリシー文。主体をOSMHの動的セットに限定し、検証用コンパートメントのインスタンスの参照だけを許可する。
   # any-user で主体を限定せず、where 句の request.principal.type で動的セットに絞る（OSMH公式の記述）。

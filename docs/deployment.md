@@ -189,7 +189,7 @@ chmod 600 oci.auto.tfvars
 | `bastion_ssh_public_key_path`    | `./.key/bastion_rsa.pub`      | Bastionセッション用のSSH公開鍵のパス         |
 | `instance_shape`                 | `VM.Standard.E5.Flex`         | Windows Server・Oracle Linux共通のシェイプ   |
 | `instance_ocpus`                 | `1`                           | OCPU数                                       |
-| `instance_memory_in_gbs`         | `16`                          | メモリ（GB）                                 |
+| `instance_memory_in_gbs`         | `8`                           | メモリ（GB）                                 |
 | `instance_ssh_public_key_path`   | `./.key/instance_ed25519.pub` | Oracle Linuxログイン用のSSH公開鍵のパス      |
 
 > [!WARNING]

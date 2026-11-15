@@ -28,7 +28,7 @@ variable "bastion_ssh_public_key_path" {
 variable "instance_memory_in_gbs" {
   type        = number
   description = "インスタンスのメモリ（GB）"
-  default     = 16
+  default     = 8
 }
 
 variable "instance_ocpus" {

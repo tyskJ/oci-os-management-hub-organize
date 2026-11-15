@@ -72,11 +72,36 @@ resource "oci_identity_policy" "osmh_agent" {
   name           = "osmh-agent"                                  # ポリシー名。テナンシ内で一意の、用途がわかる名称とする
   description    = "OS Management Hub Agentがインスタンスを登録・管理するための権限" # 説明。ポリシーの用途を示す
   # ポリシー文。動的グループのインスタンスに、自身に対応する管理対象インスタンスへのアクセスだけを許可する。
-  # 1つ目の %s に同一構成で作成した動的グループ名、2つ目の %s に検証用コンパートメント名を入れる
+  # 動的グループは <アイデンティティ・ドメイン名>/<動的グループ名> の形式で、ドメイン名を省略せずに指定する。
+  # 名前に空白を含まないため、シングルクォートで囲まない。
+  # 1つ目の %s にドメイン名、2つ目の %s に同一構成で作成した動的グループ名、3つ目の %s に検証用コンパートメント名を入れる
   statements = [
     format(
-      "Allow dynamic-group %s to {OSMH_MANAGED_INSTANCE_ACCESS} in compartment %s where request.principal.id = target.managed-instance.id",
+      "Allow dynamic-group %s/%s to {OSMH_MANAGED_INSTANCE_ACCESS} in compartment %s where request.principal.id = target.managed-instance.id",
+      "Default", # oci_identity_dynamic_group はテナンシのDefaultドメインに作成されるため
       oci_identity_dynamic_group.osmh_instances.name,
+      oci_identity_compartment.this.name,
+    ),
+  ]
+}
+
+# ============================================================
+# IAM Policy（OSMH Dynamic Sets）
+# ============================================================
+
+# OS Management Hubの動的セットが、条件に一致するインスタンスを検索（Resource Search）するための権限を定義する。
+# ポリシー・アドバイザでは作成されないため、明示的に定義する。
+# Agent用の権限（osmh_agent）とは目的が異なるため、別のポリシーに分ける。
+resource "oci_identity_policy" "osmh_dynamic_sets" {
+  compartment_id = var.tenancy_ocid                           # 作成先。osmh_agent と同じくテナンシに作成する
+  name           = "osmh-dynamic-sets"                        # ポリシー名。テナンシ内で一意の、用途がわかる名称とする
+  description    = "OS Management Hubの動的セットがインスタンスを検索するための権限" # 説明。ポリシーの用途を示す
+  # ポリシー文。主体をOSMHの動的セットに限定し、検証用コンパートメントのインスタンスの参照だけを許可する。
+  # any-user で主体を限定せず、where 句の request.principal.type で動的セットに絞る（OSMH公式の記述）。
+  # %s に同一構成で作成した検証用コンパートメント名を入れる
+  statements = [
+    format(
+      "Allow any-user to read instances in compartment %s where request.principal.type = 'osmh-dynamic-sets'",
       oci_identity_compartment.this.name,
     ),
   ]

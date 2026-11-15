@@ -15,6 +15,7 @@ resource "oci_core_instance" "this" {
   is_pv_encryption_in_transit_enabled = true                                                                     # ブートボリュームの転送中暗号化。有効にする
   preserve_boot_volume                = false                                                                    # 削除時のブートボリューム保持。検証環境のため保持しない
   defined_tags                        = each.value.defined_tags                                                  # 定義済みタグ。local.instances の定義値を使用する（Windowsだけ指定する）
+  freeform_tags                       = each.value.freeform_tags                                                 # 自由形式タグ。local.instances の定義値（OS Management Hubの登録プロファイル）を使用する
   # インスタンスのメタデータ。OSごとに設定する。
   # ＜Oracle Linux＞
   # ssh_authorized_keys：instance_ssh_public_key_path の公開鍵をopcに登録する。

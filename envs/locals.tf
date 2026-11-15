@@ -30,6 +30,11 @@ locals {
       defined_tags = {
         (local.os_type_tag_key) = "WindowsServer"
       }
+      # 付与する自由形式タグ。OsmhProfile に登録プロファイルのOCIDを入れ、作成時に指定したプロファイルで
+      # OS Management Hubへ登録させる（指定しない場合はルート・コンパートメントの既定のプロファイルが使われる）
+      freeform_tags = {
+        OsmhProfile = oci_os_management_hub_profile.windows_server_2025_x86_64.id # スタンドアロンのWindows Server 2025用プロファイル
+      }
       # Oracle Cloud Agentのプラグイン。Windowsで提供されるプラグインすべての状態を明示する
       agent_plugins = [
         { name = "Custom Logs Monitoring", desired_state = "DISABLED" },               # Loggingへのカスタムログ収集。使用しない
@@ -49,6 +54,11 @@ locals {
       boot_volume_size_in_gbs  = 50             # ブートボリューム容量。最小値の50GBとする
       remote_port              = 22             # Bastion経由で接続するポート（SSH）
       defined_tags             = null           # 付与する定義済みタグ。付けないためnullとする
+      # 付与する自由形式タグ。OsmhProfile に登録プロファイルのOCIDを入れ、作成時に指定したプロファイルで
+      # OS Management Hubへ登録させる（指定しない場合はルート・コンパートメントの既定のプロファイルが使われる）
+      freeform_tags = {
+        OsmhProfile = oci_os_management_hub_profile.ol10_x86_64_group.id # ol10_x86_64 グループに参加させるプロファイル
+      }
       # Oracle Cloud Agentのプラグイン。Oracle Linuxで提供されるプラグインすべての状態を明示する
       agent_plugins = [
         { name = "Custom Logs Monitoring", desired_state = "DISABLED" },               # Loggingへのカスタムログ収集。使用しない

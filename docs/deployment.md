@@ -281,15 +281,29 @@ Bastionセッション（SSHポートフォワーディング）はTerraformで�
 terraform output bastion_session_commands
 ```
 
-出力されたコマンドの `<privateKey>` を **Bastion用の秘密鍵** `.key/bastion_rsa`、`<localPort>` を任意のローカルポートに置き換え、別ターミナルで実行したままにする。
+出力されたコマンドを、`envs/` で別ターミナルから実行したままにする。コマンドには **Bastion用の秘密鍵** のパス（`bastion_ssh_public_key_path` から `.pub` を除いたもの。既定は `./.key/bastion_rsa`）と、作業端末側のポートが埋め込まれている。
+
+| 接続先 | 作業端末側のポート | 転送先のポート |
+| --- | --- | --- |
+| Windows Server | 13389 | 3389（RDP） |
+| Oracle Linux | 10022 | 22（SSH） |
+
+> [!NOTE]
+> 作業端末側のポートは `envs/locals.tf` の `local.instances` の `local_port` で変更できる。秘密鍵は、公開鍵と同じ名前で拡張子 `.pub` のないファイルとして置く。
 
 ### 10.1 Oracle Linux（TCP/22）
 
 トンネル経由のログインには **インスタンス用の秘密鍵** `.key/instance_ed25519` を使用する。
 
+接続コマンドは出力値で確認できる。
+
 ```bash
-# 例：ローカルの 10022 番をフォワードした場合
-ssh -i .key/instance_ed25519 -p 10022 opc@localhost
+terraform output instance_connect_commands
+```
+
+```bash
+# 出力例（作業端末側の 10022 番をフォワードしている）
+ssh -i ./.key/instance_ed25519 -p 10022 opc@localhost
 ```
 
 > [!NOTE]
@@ -297,7 +311,7 @@ ssh -i .key/instance_ed25519 -p 10022 opc@localhost
 
 ### 10.2 Windows Server（TCP/3389）
 
-初期ユーザー名・パスワードを確認し、RDPクライアントで `localhost:<localPort>`（例：`localhost:13389`）へ接続する。初回ログイン時にパスワードの変更を求められる。
+初期ユーザー名・パスワードを確認し、RDPクライアントで `localhost:13389`（`terraform output instance_connect_commands` の `windows`）へ接続する。初回ログイン時にパスワードの変更を求められる。
 
 > [!IMPORTANT]
 > Windows Serverは初回起動時にuser_data（`envs/userdata/windows_init.ps1`）で日本語の言語パックをインストールし、表示言語・ロケール・キーボード・タイムゾーンを設定してから再起動する。**再起動が完了するまで初回ログインしないこと。** 先にログインすると `opc` のユーザー・プロファイルが英語設定のまま作られ、日本語の設定が反映されない。実行ログは `C:\Windows\Temp\userdata_windows_init.log` で確認できる。仕組みと注意点は [Windows Serverのuser_dataによる日本語化](./windows-userdata.md) を参照する。

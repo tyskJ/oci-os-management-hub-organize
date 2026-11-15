@@ -26,6 +26,7 @@ locals {
       hostname_label           = "win"                  # VCN内DNSのホスト名
       boot_volume_size_in_gbs  = 256                    # ブートボリューム容量。Windowsイメージの既定サイズに合わせる
       remote_port              = 3389                   # Bastion経由で接続するポート（RDP）
+      local_port               = 13389                  # ポートフォワーディングで使う作業端末側のポート。RDPの3389と重ならない番号とする
       # 付与する定義済みタグ。OS種別（Common.OSType）を付ける
       defined_tags = {
         (local.os_type_tag_key) = "WindowsServer"
@@ -53,6 +54,7 @@ locals {
       hostname_label           = "ol"           # VCN内DNSのホスト名
       boot_volume_size_in_gbs  = 50             # ブートボリューム容量。最小値の50GBとする
       remote_port              = 22             # Bastion経由で接続するポート（SSH）
+      local_port               = 10022          # ポートフォワーディングで使う作業端末側のポート。SSHの22と重ならない番号とする
       defined_tags             = null           # 付与する定義済みタグ。付けないためnullとする
       # 付与する自由形式タグ。OsmhProfile に登録プロファイルのOCIDを入れ、作成時に指定したプロファイルで
       # OS Management Hubへ登録させる（指定しない場合はルート・コンパートメントの既定のプロファイルが使われる）

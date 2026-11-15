@@ -5,7 +5,7 @@
 # プライベート・サブネットのインスタンスへ接続するためのBastionを定義する。
 # 接続元は入力変数で指定したCIDRに限定する。
 resource "oci_bastion_bastion" "this" {
-  bastion_type                 = "standard"                         # Bastionの種類。標準のBastionとする
+  bastion_type                 = "STANDARD"                         # Bastionの種類。標準のBastionとする（APIは大文字で返すため、小文字だと毎回再作成になる）
   compartment_id               = local.tagged_compartment_id        # 配置先コンパートメント。タグ・デフォルト設定済みの検証用コンパートメントを使用する
   target_subnet_id             = oci_core_subnet.this["bastion"].id # プライベート・エンドポイントを置くサブネット。Bastionサブネットを使用する
   name                         = "osmhbastion"                      # Bastion名。英数字のみ使えるため記号を含めない（作成後は変更不可）

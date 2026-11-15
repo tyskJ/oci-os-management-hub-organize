@@ -51,3 +51,17 @@ data "oci_core_images" "this" {
   sort_by                  = "TIMECREATED"                       # 並び替えキー。作成日時で並べる
   sort_order               = "DESC"                              # 並び順。新しい順にし、先頭を最新イメージとして使う
 }
+
+# ============================================================
+# OS Management Hub Vendor Software Source
+# ============================================================
+
+# ルート・コンパートメントにあるOracle Linux 10（x86_64）BaseOSのベンダー・ソフトウェア・ソースを取得する。
+# 検証用コンパートメントへ複製する際の複製元（osmh.tf の origin_software_source_id）に使用する。
+data "oci_os_management_hub_software_sources" "ol10_baseos_latest_x86_64" {
+  compartment_id       = var.tenancy_ocid            # 検索対象。ベンダー・ソフトウェア・ソースは常にルート・コンパートメントにある
+  software_source_type = ["VENDOR"]                  # ソフトウェア・ソースの種類。ベンダー提供のソースに絞る
+  vendor_name          = "ORACLE"                    # ベンダー名。Oracle提供のソースに絞る
+  arch_type            = ["X86_64"]                  # アーキテクチャ。インスタンスのシェイプ（E5.Flex）に合わせx86_64に絞る
+  display_name         = "ol10_baseos_latest-x86_64" # 表示名。ベンダーが定義するリポジトリ名と完全一致で絞る
+}

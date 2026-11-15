@@ -35,6 +35,23 @@ resource "oci_identity_tag" "system_name" {
   is_retired       = false                              # 廃止状態。使用中のため廃止しない
 }
 
+# OSの種別を値に持つタグ・キーを定義する。
+# OSごとに値が異なるため、タグ・デフォルトにはせず、付与するリソースの defined_tags で指定する。
+# OSのバージョンとアーキテクチャはOS Management Hubが自動で取得するため、タグでは種別だけを持つ。
+resource "oci_identity_tag" "os_type" {
+  tag_namespace_id = oci_identity_tag_namespace.this.id # 所属するネームスペース。同一構成で作成したネームスペースを使用する
+  name             = "OSType"                           # タグ・キー名。OSの種別を表す名前とする（作成後は変更不可）
+  description      = "OSの種別"                            # 説明。キーの意味を示す
+  is_cost_tracking = false                              # コスト追跡タグ。テナンシ内の上限数があるため使用しない
+  is_retired       = false                              # 廃止状態。使用中のため廃止しない
+
+  # 値の候補。表記ゆれを防ぐため、列挙した値からだけ選べるようにする
+  validator {
+    validator_type = "ENUM"                     # 検証の種類。列挙した値に限定する
+    values         = ["Linux", "WindowsServer"] # 指定できる値。本構成のOS（Oracle Linux・Windows Server）の種別とする
+  }
+}
+
 # 検証用コンパートメントにタグ・デフォルトを設定する。
 # コンパートメント内で新しく作るリソースに、定義済みタグ「Common.SystemName」が自動で付く。
 resource "oci_identity_tag_default" "system_name" {

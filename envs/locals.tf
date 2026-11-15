@@ -26,6 +26,10 @@ locals {
       hostname_label           = "win"                  # VCN内DNSのホスト名
       boot_volume_size_in_gbs  = 256                    # ブートボリューム容量。Windowsイメージの既定サイズに合わせる
       remote_port              = 3389                   # Bastion経由で接続するポート（RDP）
+      # 付与する定義済みタグ。OS種別（Common.OSType）を付ける
+      defined_tags = {
+        (local.os_type_tag_key) = "WindowsServer"
+      }
       # Oracle Cloud Agentのプラグイン。Windowsで提供されるプラグインすべての状態を明示する
       agent_plugins = [
         { name = "Custom Logs Monitoring", desired_state = "DISABLED" },               # Loggingへのカスタムログ収集。使用しない
@@ -44,6 +48,7 @@ locals {
       hostname_label           = "ol"           # VCN内DNSのホスト名
       boot_volume_size_in_gbs  = 50             # ブートボリューム容量。最小値の50GBとする
       remote_port              = 22             # Bastion経由で接続するポート（SSH）
+      defined_tags             = null           # 付与する定義済みタグ。付けないためnullとする
       # Oracle Cloud Agentのプラグイン。Oracle Linuxで提供されるプラグインすべての状態を明示する
       agent_plugins = [
         { name = "Custom Logs Monitoring", desired_state = "DISABLED" },               # Loggingへのカスタムログ収集。使用しない
@@ -64,6 +69,10 @@ locals {
       ]
     }
   }
+
+  # OS種別のタグのキー（<ネームスペース>.<タグ・キー>）。
+  # 同一構成で作成したネームスペースとタグ・キーを参照し、タグ・キーの作成完了後にタグが付くようにする
+  os_type_tag_key = format("%s.%s", oci_identity_tag_namespace.this.name, oci_identity_tag.os_type.name)
 
   # 検証用コンパートメント内に作るリソースの配置先。
   # タグ・デフォルトは作成後に作られたリソースにだけ付くため、タグ・デフォルト経由で参照し、

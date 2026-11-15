@@ -52,6 +52,19 @@ resource "oci_identity_tag" "os_type" {
   }
 }
 
+# OS種別のタグ・キーが反映されるまで待つ。
+# タグ・キーは作成直後だとOCI全体に反映されておらず、直後にタグを付けてリソースを作ると
+# 「TagDefinition ... does not exists」（400-InvalidParameter）で失敗するため、作成後に一定時間待つ。
+# タグのキーは triggers 経由で参照し（local.os_type_tag_key）、待ち終わってからタグが付くようにする。
+resource "time_sleep" "os_type_tag_propagation" {
+  create_duration = "1m" # 作成後の待ち時間。タグ・キーが反映されるまでの目安として1分とする
+
+  # 待ち終わった後に参照させる値。ネームスペース名とタグ・キー名から「<ネームスペース>.<タグ・キー>」を組み立てる
+  triggers = {
+    tag_key = format("%s.%s", oci_identity_tag_namespace.this.name, oci_identity_tag.os_type.name)
+  }
+}
+
 # 検証用コンパートメントにタグ・デフォルトを設定する。
 # コンパートメント内で新しく作るリソースに、定義済みタグ「Common.SystemName」が自動で付く。
 resource "oci_identity_tag_default" "system_name" {

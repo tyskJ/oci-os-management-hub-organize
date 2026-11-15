@@ -21,5 +21,10 @@ terraform {
       source  = "oracle/oci"
       version = "~> 9.0"
     }
+    # タグ・キーの反映待ち（time_sleep）に使用する
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.14"
+    }
   }
 }

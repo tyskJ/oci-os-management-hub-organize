@@ -71,8 +71,8 @@ locals {
   }
 
   # OS種別のタグのキー（<ネームスペース>.<タグ・キー>）。
-  # 同一構成で作成したネームスペースとタグ・キーを参照し、タグ・キーの作成完了後にタグが付くようにする
-  os_type_tag_key = format("%s.%s", oci_identity_tag_namespace.this.name, oci_identity_tag.os_type.name)
+  # タグ・キーの反映待ち（time_sleep）を経由して参照し、反映後にタグが付くようにする
+  os_type_tag_key = time_sleep.os_type_tag_propagation.triggers["tag_key"]
 
   # 検証用コンパートメント内に作るリソースの配置先。
   # タグ・デフォルトは作成後に作られたリソースにだけ付くため、タグ・デフォルト経由で参照し、

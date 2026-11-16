@@ -247,7 +247,8 @@ terraform test
 個別のテストファイルを実行する場合：
 
 ```bash
-terraform test -filter=tests/.tftest.hcl
+# 例：OS Management Hubのテストだけを実行する
+terraform test -filter=tests/osmh.tftest.hcl
 ```
 
 > [!IMPORTANT]

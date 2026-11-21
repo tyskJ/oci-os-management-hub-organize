@@ -4,7 +4,7 @@
 
 OCI OS管理ハブの構成およびTerraformによる構築・管理に関する情報をまとめる。
 
-- 技術解説：[OCI OS管理ハブについて整理する（Qiita）]()
+- 技術解説：[OCI OS管理ハブについて整理する（Qiita）](https://qiita.com/tyskJ/items/652f0b3bb51e13b313db)
 
 ## 構成図
 
